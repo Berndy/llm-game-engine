@@ -15,10 +15,31 @@ You do not write any system or player messages, you only write the character's d
 
 ${chunks
     .map((chunk) => {
-        return `## ${chunk.type}\n${chunk.content}`;
+        return `## ${chunk.type}\n### CONTENT\n ${chunk.content}`;
     })
     .join('\n\n')}
 
 ## CHARACTER
+### CONTENT
+`;
+};
+
+export const getMemorizedInteractionPrompt = (characterName: string, chunks: InteractionChunk[]) => {
+    return `# ACTION - MEMORIZE INTERACTION
+
+This was a conversation between the player and the character ${characterName}.
+Your task is to create a memory of this conversation for the character ${characterName}.
+The memory should be a short summary of the conversation, including the most important parts, any decisions made, information learned, tasks agreed upon, etc.
+The memory should be written in the third person, as if the character is remembering the conversation.
+The memory should be written in a way that the character would remember it, so it should be in character, affected by the character's traits, backstory etc.
+
+${chunks
+    .map((chunk) => {
+        return `## ${chunk.type}\n### CONTENT\n ${chunk.content}`;
+    })
+    .join('\n\n')}
+
+## MEMORY ENTRY
+### CONTENT
 `;
 };

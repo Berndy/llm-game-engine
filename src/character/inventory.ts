@@ -42,3 +42,5 @@ export const createInventory = (initial: Record<string, number> = {}) => {
         stringify,
     };
 };
+
+export type Inventory = ReturnType<typeof createInventory>;

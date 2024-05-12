@@ -1,8 +1,8 @@
 import axios from 'axios';
 import readline from 'readline';
-import { createCharacter } from './character/character';
-import { createWorld } from './world/world';
-import { InteractionChunk, getInteractionPrompt } from './actions.js/interaction';
+import { Character, createCharacter } from './character/character';
+import { World, createWorld } from './world/world';
+import { InteractionChunk, getInteractionPrompt, getMemorizedInteractionPrompt } from './actions.js/interaction';
 
 const generateEndpoint = 'http://localhost:11434/api/generate';
 
@@ -32,7 +32,11 @@ const generate = async (prompt: string) => {
         // format: "json",
     });
 
-    return res.data.response;
+    return {
+        response: res.data.response,
+        promptTokens: res.data.prompt_eval_count,
+        responseTokens: res.data.eval_count,
+    };
 };
 
 // Function to prompt user for input
@@ -49,11 +53,43 @@ const promptUser = (question: string): Promise<string> => {
     });
 };
 
-// Asynchronous function to await user input
-async function getUserInput() {
-    const userInput = await promptUser('Enter your input: ');
-    console.log('You entered:', userInput);
-}
+const runInteractionMemorization = async (world: World, character: Character, interaction: InteractionChunk[]) => {
+    const prompt = getMemorizedInteractionPrompt(character.getName(), interaction);
+    const res = await generate(prompt);
+    console.log(`[${prompt.length}, ${res.promptTokens}, ${res.responseTokens}]`);
+    console.log(`MEMORY (${character.getName()}): ${res.response}`);
+
+    character.memory.add(res.response);
+};
+
+const runInteraction = async (world: World, character: Character) => {
+    const interaction: InteractionChunk[] = [];
+
+    while (true) {
+        const input = await promptUser('Player: ');
+        interaction.push({
+            type: 'PLAYER',
+            content: input,
+        });
+
+        const prompt = `${world.getWorldPrompt()}\n${character.getCharacterPrompt()}\n${getInteractionPrompt(character.getName(), interaction)}\n`;
+
+        // console.log(prompt);
+        const res = await generate(prompt);
+        console.log(`[${prompt.length}, ${res.promptTokens}, ${res.responseTokens}]`);
+        console.log(`${character.getName()}: ${res.response}`);
+
+        interaction.push({
+            type: 'CHARACTER',
+            content: res.response,
+        });
+
+        if (input.startsWith('/end')) {
+            await runInteractionMemorization(world, character, interaction);
+            break;
+        }
+    }
+};
 
 const run = async () => {
     // const Paul = createCharacter({
@@ -82,25 +118,13 @@ const run = async () => {
         name: 'The World',
     });
 
-    const interaction: InteractionChunk[] = [];
-
     while (true) {
-        const input = await promptUser('Player: ');
-        interaction.push({
-            type: 'PLAYER',
-            content: input,
-        });
+        const input = await promptUser('Decide what to do next!\n/start to start the next conversation\n');
 
-        const prompt = `${world.getWorldPrompt()}\n${PotionSeller.getCharacterPrompt()}\n${getInteractionPrompt(PotionSeller.getName(), interaction)}\n`;
-
-        // console.log(prompt);
-        const response = await generate(prompt);
-        console.log(`${PotionSeller.getName()}: ${response}`);
-
-        interaction.push({
-            type: 'CHARACTER',
-            content: response,
-        });
+        // console.log(input, input.startsWith('/start'));
+        if (input.startsWith('/start')) {
+            await runInteraction(world, PotionSeller);
+        }
     }
 };
 
